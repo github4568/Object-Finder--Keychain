@@ -1,0 +1,184 @@
+#include <ESP8266WiFi.h>
+#include <TinyGPS++.h>
+#include <SoftwareSerial.h>
+
+TinyGPSPlus gps;
+SoftwareSerial SerialGPS(4, 5);
+
+WiFiClient client; // Define client. You may give any name to client.
+WiFiServer server(80); // Define port 80 as wi-fi server port
+
+// Connect buzzer to port D5.
+# define Buzzer D5
+
+
+// WiFi parameters to be configured
+const char* ssid = "Shriya's Galaxy A54 5G "; // Write here your router's username
+const char* password = "Borbon123"; // Write here your router's passward
+
+float Latitude , Longitude, GPS_Timezone_Adjust;
+int year , month , date, hour , minute , second;
+String DateString , TimeString , LatitudeString , LongitudeString ;
+
+
+void setup() {
+  // put your setup code here, to run once:
+Serial.begin(9600); // Set up baud rate.
+ SerialGPS.begin(9600);
+//WiFi.begin("SHRIYA","aikt1976");
+WiFi.begin("Shriya's Galaxy A54 5G ","Borbon123");
+
+WiFi.begin(ssid, password);
+
+while(WiFi.status() !=WL_CONNECTED)
+{delay(500);
+Serial.print(".");
+}
+Serial.println();
+Serial.println("NodeMCU is Connected");
+
+// Print the IP address
+ Serial.println(WiFi.localIP());
+server.begin();
+  pinMode(Buzzer, OUTPUT);
+  
+}
+
+void loop() {
+  // put your main code here, to run repeatedly:
+client=server.available();
+if(client==1)
+{
+  String request =client.readStringUntil('\n');
+  Serial.println(request);
+  request.trim();
+  
+  if(request =="GET /Buzzer HTTP/1.1")
+  {
+  for(int i=0;i<10;i++)
+  {
+   tone(14, 494, 500); 
+   delay(1000);
+  }
+  }
+  }
+
+
+  while (SerialGPS.available() > 0)
+    if (gps.encode(SerialGPS.read()))
+    {
+      if (gps.location.isValid())
+      {
+        Latitude = gps.location.lat();
+        LatitudeString = String(Latitude , 6);
+        Longitude = gps.location.lng();
+        LongitudeString = String(Longitude , 6);
+      }
+
+      if (gps.date.isValid())
+      {
+        DateString = "";
+        date = gps.date.day();
+        month = gps.date.month();
+        year = gps.date.year();
+
+        if (date < 10)
+        DateString = '0';
+        DateString += String(date);
+
+        DateString += " / ";
+
+        if (month < 10)
+        DateString += '0';
+        DateString += String(month);
+        DateString += " / ";
+
+        if (year < 10)
+        DateString += '0';
+        DateString += String(year);
+      }
+
+      if (gps.time.isValid())
+      {
+        TimeString = "";
+        hour = gps.time.hour()+5; //adjust UTC
+        minute = gps.time.minute()+30;
+        second = gps.time.second();
+
+         
+         if(minute >= 60)
+         {
+         minute = minute-60;
+         hour = hour+1;
+         }
+    
+        if (hour < 10)
+        TimeString = '0';
+        TimeString += String(hour);
+        TimeString += " : ";
+
+        if (minute < 10)
+        TimeString += '0';
+        TimeString += String(minute);
+        TimeString += " : ";
+       
+        if (second < 10)
+        TimeString += '0';
+        TimeString += String(second);
+      }
+
+    }
+
+  
+
+  WiFiClient client = server.available();
+  if (!client)
+  {
+    return;
+  }
+  
+  
+
+  
+
+  //Response
+  String s = "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\n\r\n <!DOCTYPE html> <html> <head> <title>NEO-6M GPS Readings</title> <style>";
+  s += "table, th, td {border: 1px solid blue;} </style> </head> <body> <h1  style=";
+  s += "font-size:300%;";
+  s += " ALIGN=CENTER>NEO-6M GPS Readings</h1>";
+  s += "<p ALIGN=CENTER style=""font-size:150%;""";
+  s += "> <b>Location Details</b></p> <table ALIGN=CENTER style=";
+  s += "width:50%";
+  s += "> <tr> <th>Latitude</th>";
+  s += "<td ALIGN=CENTER >";
+  s += LatitudeString;
+  s += "</td> </tr> <tr> <th>Longitude</th> <td ALIGN=CENTER >";
+  s += LongitudeString;
+  s += "</td> </tr> <tr>  <th>Date</th> <td ALIGN=CENTER >";
+  s += DateString;
+  s += "</td></tr> <tr> <th>Time</th> <td ALIGN=CENTER >";
+  s += TimeString;
+  s += "</td>  </tr> </table> ";
+ 
+  
+  if (gps.location.isValid())
+  {
+    s += "<p align=center><a style=""color:RED;font-size:125%;"" href=""http://maps.google.com/maps?&z=15&mrt=yp&t=k&q=";
+    s += LatitudeString;
+    s += "+";
+    s += LongitudeString;
+    s += """ target=""_top"">Click here</a> to open the location in Google Maps.</p>";
+  }
+
+  s += "</body> </html> \n";
+
+  client.print(s);
+  delay(100);
+}
+  
+
+
+
+
+  
+  
